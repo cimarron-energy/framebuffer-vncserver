@@ -53,6 +53,8 @@ Using qmake:
 
 	./framebuffer-vncserver [-f device] [-p port] [-t touchscreen] [-m mouse] [-k keyboard] [-r rotation] [-R touchscreen rotation] [-F FPS] [-v] [-h]
 	-p port: VNC port, default is 5900
+	-a authentication: path to password file generated with 'storepasswd'
+	-A authentication: plain text password
 	-f device: framebuffer device node, default is /dev/fb0
 	-k device: keyboard device node (example: /dev/input/event0)
 	-t device: touchscreen device node (example:/dev/input/event2)
