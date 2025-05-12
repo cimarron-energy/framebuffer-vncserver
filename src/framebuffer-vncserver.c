@@ -73,6 +73,9 @@ static unsigned int frame_size;
 static unsigned int fb_xres;
 static unsigned int fb_yres;
 int verbose = 0;
+/* Can be either a path to a password file or a plain text password. */
+static char *authData = NULL;
+static rfbBool authByFile = TRUE;
 
 #define UNUSED(x) (void)(x)
 
@@ -222,6 +225,56 @@ a press and release of button 5.
     injectMouseEvent(&var_scrinfo, buttonMask, x, y);
 }
 
+static rfbBool rfbDefaultPasswordCheck(rfbClientPtr cl, const char* response, int len)
+{
+    int i;
+    char *passwd=rfbDecryptPasswdFromFile(cl->screen->authPasswdData);
+
+    if(!passwd) {
+        rfbErr("Couldn't read password file: %s\n",cl->screen->authPasswdData);
+        return(FALSE);
+    }
+
+    rfbEncryptBytes(cl->authChallenge, passwd);
+
+    /* Lose the password from memory */
+    for (i = strlen(passwd); i >= 0; i--) {
+        passwd[i] = '\0';
+    }
+
+    free(passwd);
+
+    if (memcmp(cl->authChallenge, response, len) != 0) {
+        rfbErr("authProcessClientMessage: authentication failed from %s\n",
+               cl->host);
+        return(FALSE);
+    }
+
+    return(TRUE);
+}
+
+rfbBool rfbCheckPasswordByList(rfbClientPtr cl, const char* response, int len)
+{
+    char **passwds;
+    int i=0;
+
+    for(passwds=(char**)cl->screen->authPasswdData;*passwds;passwds++,i++) {
+        uint8_t auth_tmp[CHALLENGESIZE];
+        memcpy((char *)auth_tmp, (char *)cl->authChallenge, CHALLENGESIZE);
+        rfbEncryptBytes(auth_tmp, *passwds);
+
+        if (memcmp(auth_tmp, response, len) == 0) {
+            if(i>=cl->screen->authPasswdFirstViewOnly)
+                cl->viewOnly=TRUE;
+            return(TRUE);
+        }
+    }
+
+    rfbErr("authProcessClientMessage: authentication failed from %s\n",
+           cl->host);
+    return(FALSE);
+}
+
 /*****************************************************************************/
 
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch, rfbBool enable_mouse)
@@ -250,6 +303,8 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch, rfbBool 
     server->alwaysShared = TRUE;
     server->httpDir = NULL;
     server->port = vnc_port;
+    server->passwordCheck = authByFile ? rfbDefaultPasswordCheck : rfbCheckPasswordByList;
+    server->authPasswdData = (void *)authData;
 
     server->kbdAddEvent = keyevent;
     if (enable_touch)
@@ -598,6 +653,8 @@ void print_usage(char **argv)
 {
     info_print("%s [-f device] [-p port] [-t touchscreen] [-m mouse] [-k keyboard] [-r rotation] [-R touchscreen rotation] [-F FPS] [-v] [-h]\n"
                "-p port: VNC port, default is 5900\n"
+               "-a authentication: path to password file generated with 'storepasswd'\n"
+               "-A authentication: plain text password\n"
                "-f device: framebuffer device node, default is /dev/fb0\n"
                "-k device: keyboard device node (example: /dev/input/event0)\n"
                "-t device: touchscreen device node (example:/dev/input/event2)\n"
@@ -649,6 +706,22 @@ int main(int argc, char **argv)
                     if (argv[i])
                         vnc_port = atoi(argv[i]);
                     break;
+                case 'a':
+                    i++;
+                    if (argv[i])
+                        authData = argv[i];
+                    break;
+                case 'A': {
+                    i++;
+                    char **passwds = malloc(sizeof(char**)*2);
+                    if (passwds && argv[i]) {
+                        passwds[0] = argv[i];
+                        passwds[1] = NULL;
+                        authByFile = FALSE;
+                        authData = (char *)passwds;
+                    }
+                    break;
+                }
                 case 'r':
                     i++;
                     if (argv[i])
@@ -718,6 +791,7 @@ int main(int argc, char **argv)
     info_print("	height: %d\n", (int)fb_yres);
     info_print("	bpp:    %d\n", (int)var_scrinfo.bits_per_pixel);
     info_print("	port:   %d\n", (int)vnc_port);
+    info_print("	authentication mode: %s\n", authByFile ? "file" : "password");
     info_print("	rotate: %d\n", (int)vnc_rotate);
     info_print("  mouse/touch rotate: %d\n", (int)touch_rotate);
     info_print("    target FPS: %d\n", (int)target_fps);
