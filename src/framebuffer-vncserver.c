@@ -51,8 +51,8 @@
 // #define CHANNELS_PER_PIXEL 4
 
 static char fb_device[256] = "/dev/fb0";
-static char touch_device[256] = "";
-static char kbd_device[256] = "";
+static char touch_device[256] = "/dev/input/event1";
+static char kbd_device[256] = "/dev/input/event0";
 static char mouse_device[256] = "";
 
 static struct fb_var_screeninfo var_scrinfo;
