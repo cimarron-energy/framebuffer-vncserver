@@ -74,7 +74,7 @@ static unsigned int fb_xres;
 static unsigned int fb_yres;
 int verbose = 0;
 /* Can be either a path to a password file or a plain text password. */
-static char *authData = NULL;
+static char *authData = "/usr/bin/passwordfile";
 static rfbBool authByFile = TRUE;
 
 #define UNUSED(x) (void)(x)
