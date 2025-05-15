@@ -51,8 +51,8 @@
 // #define CHANNELS_PER_PIXEL 4
 
 static char fb_device[256] = "/dev/fb0";
-static char touch_device[256] = "";
-static char kbd_device[256] = "";
+static char touch_device[256] = "/dev/input/event1";
+static char kbd_device[256] = "/dev/input/event0";
 static char mouse_device[256] = "";
 
 static struct fb_var_screeninfo var_scrinfo;
@@ -74,7 +74,7 @@ static unsigned int fb_xres;
 static unsigned int fb_yres;
 int verbose = 0;
 /* Can be either a path to a password file or a plain text password. */
-static char *authData = NULL;
+static char *authData = "/usr/bin/passwordfile";
 static rfbBool authByFile = TRUE;
 
 #define UNUSED(x) (void)(x)
