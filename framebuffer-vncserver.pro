@@ -12,7 +12,10 @@ include(deployment.pri)
 qtcAddDeployment()
 
 
-LIBS += -lvncserver
+CONFIG += link_pkgconfig
+PKGCONFIG += gnutls
+
+LIBS += -lvncserver -lsodium
 
 DISTFILES += \
     README.md
