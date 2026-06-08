@@ -585,6 +585,30 @@ a press and release of button 5.
 
 /*****************************************************************************/
 
+/* Single-client mode: reject additional connections while one is active. */
+static int active_client_count = 0;
+static void client_gone_hook(rfbClientPtr cl);
+
+static enum rfbNewClientAction new_client_hook(rfbClientPtr cl)
+{
+    if (active_client_count > 0) {
+        rfbErr("Single-client mode: rejecting connection from %s "
+               "(session already active)\n", cl->host);
+        return RFB_CLIENT_REFUSE;
+    }
+    active_client_count++;
+    cl->clientGoneHook = client_gone_hook;
+    info_print("Client connected: %s\n", cl->host);
+    return RFB_CLIENT_ACCEPT;
+}
+
+static void client_gone_hook(rfbClientPtr cl)
+{
+    if (active_client_count > 0)
+        active_client_count--;
+    info_print("Client disconnected: %s\n", cl->host);
+}
+
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch, rfbBool enable_mouse)
 {
     info_print("Initializing server...\n");
@@ -608,9 +632,11 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch, rfbBool 
 
     server->desktopName = "framebuffer";
     server->frameBuffer = (char *)vncbuf;
-    server->alwaysShared = TRUE;
+    server->alwaysShared = FALSE;
+    server->neverShared = TRUE;
     server->httpDir = NULL;
     server->port = vnc_port;
+    server->newClientHook = new_client_hook;
 
     /* Register VeNCrypt and stay compatible with older libvncserver.
      *
